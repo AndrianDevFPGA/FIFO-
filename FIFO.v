@@ -3,70 +3,161 @@
   email : Andrianoelisoa.Rakotojaona@gmail.com
   Description : Synchronized FIFO Written in Verilog HDL
 */
-module fifo #(
-    parameter WIDTH = 4,
-    parameter DEPTH = 4
-)(
-    input [WIDTH-1:0] data_in,
-    input wire clk,
-    input wire write,
-    input wire read,
-    output reg [WIDTH-1:0] data_out,
-    output wire fifo_full,
-    output wire fifo_empty,
-    output wire fifo_not_empty,
-    output wire fifo_not_full
-);
 
-    // memory will contain the FIFO data.
-    reg [WIDTH-1:0] memory [0:DEPTH-1];
-    // $clog2(DEPTH+1)-2 to count from 0 to DEPTH
-    reg [$clog2(DEPTH)-1:0] write_ptr;
-    reg [$clog2(DEPTH)-1:0] read_ptr;
-
-    // Initialization
-    initial begin
+module fifo(
+           clk,
+           rst,
+           wr,
+           rd,
+           wrData,
+           rdData,
+           full,
+           empty
+            );
+  parameter DEPTH = 56;
+  input clk;
+  input rst;
+  input wr;
+  input rd;
+  input [7:0] wrData;
+  output reg [7:0] rdData;
+  output wire full;
+  output wire empty;
+  
+  //create memory for fifo 
+  reg [7:0] memory [DEPTH -1 :0];
+  
+  reg [7:0] wrPointer;
+  reg [7:0] rdPointer;
+  
+  reg [8:0] pointerFifo;
+  
+  // fifo full 
+  assign full= (pointerFifo  == DEPTH-1)? 1:0;
+  // fifo empty 
+  assign empty = (pointerFifo == 0)? 1:0;
+  
+  // WRITE DATA 
+  always @ (posedge clk)
+    begin
+      if (rst)
+        begin
+          wrPointer <= 0;
+        end 
+      else
+        begin
+          if (wr)
+            begin
+              memory [wrPointer] <= wrData;
+              wrPointer <= wrPointer +1 ;
+            end
+        end
+    end
+  
+  // READ DATA 
+  always @ (posedge clk)
+    begin
+      if (rst)
+        begin
+          rdPointer <= 0;
+        end 
+      else
+        begin
+          if (rd)
+            begin
+              rdData  <=memory [rdPointer];
+              rdPointer <= rdPointer + 1;
+            end
+        end
+    end
     
-        // Init both write_cnt and read_cnt to 0
-        write_ptr = 0;
-        read_ptr = 0;
+    // controll full empty 
+    always @ (posedge clk)
+      begin
+        if (rst)
+          begin
+            pointerFifo <=8'd0;
+          end 
+        else
+          begin
+            if (wr ==1'b0 && rd == 1'b0)
+              begin
+                pointerFifo <= pointerFifo ;
+              end 
+            else if (wr ==1'b1 && rd == 1'b0)
+              begin
+                pointerFifo <= pointerFifo + 1'b1 ;
+              end 
+            else if (wr == 1'b0 && rd == 1'b1)
+              begin
+                pointerFifo <= pointerFifo - 1'b1;
+              end 
+            else
+              begin
+                pointerFifo <= pointerFifo ;
+              end 
+          end 
+      end 
+  
+endmodule
 
-        // Display error if WIDTH is 0 or less.
-        if ( WIDTH <= 0 ) begin
-            $error("%m ** Illegal condition **, you used %d WIDTH", WIDTH);
-        end
-        // Display error if DEPTH is 0 or less.
-        if ( DEPTH <= 0) begin
-            $error("%m ** Illegal condition **, you used %d DEPTH", DEPTH);
-        end
 
-    end // end initial
+/*
+    Test bench
+    
+module tbFifo(
 
-    assign fifo_empty   = ( write_ptr == read_ptr ) ? 1'b1 : 1'b0;
-    assign fifo_full    = ( write_ptr == (DEPTH-1) ) ? 1'b1 : 1'b0;
-    assign fifo_not_empty = ~fifo_empty;
-    assign fifo_not_full = ~fifo_full;
-
-    always @ (posedge clk) begin
-
-        if ( write ) begin
-            memory[write_ptr] <= data_in;
-        end
-
-        if ( read ) begin
-            data_out <= memory[read_ptr];
-        end
-
-    end
-
-    always @ ( posedge clk ) begin
-        if ( write ) begin
-            write_ptr <= write_ptr + 1;
-        end
-
-        if ( read && fifo_not_empty ) begin
-            read_ptr <= read_ptr + 1;
-        end
-    end
+    );
+    
+  parameter DEPTH = 56;
+  reg clk;
+  reg rst;
+  reg wr;
+  reg rd;
+  reg [7:0] wrData;
+  wire  [7:0] rdData;
+  wire  full;
+  wire  empty;
+    
+    fifo uut(
+           clk,
+           rst,
+           wr,
+           rd,
+           wrData,
+           rdData,
+           full,
+           empty
+            );
+ 
+   initial
+     begin
+       clk =0;
+       rst =1;
+       wr =0;
+       rd=0;
+       wrData =8'd1;
+       #10 
+       rst =0;
+       #100 
+       wr = 1;
+       #150 
+       wr = 0;
+       #100 
+       rd = 1;
+       #100 
+       rd =0;
+       #200 
+       wr = 1;
+       #300 
+       wr=0;
+     end 
+   
+   always 
+     begin
+       #5 clk = ! clk;
+     end 
 
 endmodule
+
+*/
